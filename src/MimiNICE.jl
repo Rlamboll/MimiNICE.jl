@@ -6,12 +6,14 @@ using CSVFiles, DataFrames, Mimi, MimiRICE2010
 
 # Load helper functions and NICE components being added to the RICE model.
 include("helper_functions.jl")
+include("calc_scc.jl")
+
 include(joinpath("nice_components", "nice_neteconomy_component.jl"))
 include(joinpath("nice_components", "nice_welfare_component.jl"))
 
 # Export the following functions.
 export create_nice, quintile_distribution
-
+const model_years = 2005:10:2595
 
 # ---------------------------------------------
 # ---------------------------------------------
