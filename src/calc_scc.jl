@@ -60,13 +60,15 @@ end
 # helper function for computing SCC from a MarginalModel
 function _compute_scc(mm::MarginalModel; year::Int, last_year::Int, prtp::Float64, eta::Float64, whose_money::String)
     # Will run through the timestep of the specified last_year
-    ntimesteps = findfirst(isequal(last_year), model_years) 
+    ntimesteps = findfirst(isequal(last_year), model_years)
     run_years = model_years[1:ntimesteps]
     run(mm)
-    # convert from trillion $/ton C to $/ton CO2;
-    marginal_damages = -mm[:nice_neteconomy, :quintile_c_post]* 10.0^12 * 12/44
+    # convert from 1000 $/ton C to $/ton CO2. The marginal model returns the difference per unit C emitted
+    # There is a factor of 10E6 /5 from the population being in millions and divided by 5 quintiles. 
+    marginal_damages = -mm[:nice_neteconomy, :quintile_c_post] .* repeat(
+        mm.base[:nice_neteconomy, :l], outer=[1, 1, 5]) * 10.0^9 * 12/44 /5
     # We determine the weights using the pre-damages consumption in $
-    cpc = 1000 .* mm.base[:nice_neteconomy, :quintile_c_pre]
+    cpc = 1000 .* mm.base[:nice_neteconomy, :quintile_c_post]
     year_index = findfirst(isequal(year), model_years)
     df = zeros(size(cpc))
     if whose_money == "poorest"
@@ -74,28 +76,18 @@ function _compute_scc(mm::MarginalModel; year::Int, last_year::Int, prtp::Float6
     end
     if whose_money == "average"
         null_cpc = sum(sum(cpc[year_index, :, :] .* mm.base[:nice_neteconomy, :l][year_index, :, :], dims=2), dims=1) /
-         sum(sum(mm.base[:nice_neteconomy, :l][year_index, :, :], dims=2), dims=1)
-    end
-    if whose_money in ["poorest", "average"]
-        for (i,t) in enumerate(run_years) 
-            if year<=t<=last_year
-                df[i, :, :] = (null_cpc./cpc[i, :, :]).^eta * 1/(1+prtp)^(t-year)
-            end
-        end
+        sum(sum(mm.base[:nice_neteconomy, :l][year_index, :, :], dims=2), dims=1)
     end
     if whose_money == "independent"
-        for (i,t) in enumerate(run_years) 
-            if year<=t<=last_year
-                df[i, :, :] = (cpc[year, :, :]./cpc[i, :, :])^eta * 1/(1+prtp)^(t-year)
-            end
+        null_cpc = cpc[year_index, :, :]
+    end
+    for (i,t) in enumerate(run_years) 
+        if year<=t<=last_year
+            df[i, :, :] = (null_cpc./cpc[i, :, :]).^eta * 1/(1+prtp)^(t-year)
         end
     end
     # currently implemented as a 10year step function; so each timestep of discounted marginal damages is multiplied by 10
     # TODO: check and interpolate
-    #print("\n df = \n")
-    #print(df)
-    print("\n marg dam = \n")
-    print(marginal_damages)
     scc = sum(df .* marginal_damages * 10)
     return scc
 end

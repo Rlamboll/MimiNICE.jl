@@ -68,14 +68,15 @@ function create_nice()
     set_param!(nice, :l,   un_population_data)
 
     # Set new NICE component parameters for net economy.
+    income_elasticity = 1.0
     set_param!(nice, :nice_neteconomy, :income_dist, income_distribution ./ 100)
-    set_param!(nice, :nice_neteconomy, :damage_dist, quintile_distribution(1.0, income_distribution))
-    set_param!(nice, :nice_neteconomy, :abatement_dist, quintile_distribution(1.0, income_distribution))
+    set_param!(nice, :nice_neteconomy, :damage_dist, quintile_distribution(income_elasticity, income_distribution))
+    set_param!(nice, :nice_neteconomy, :abatement_dist, quintile_distribution(income_elasticity, income_distribution))
 
     # Set new NICE component parameters for welfare component.
     set_param!(nice, :nice_welfare, :quintile_pop, quintile_population)
     set_param!(nice, :nice_welfare, :rho, 0.015)
-    set_param!(nice, :nice_welfare, :eta, 1.5)
+    set_param!(nice, :nice_welfare, :eta, 2)
 
     # Create model connections.
     connect_param!(nice, :grosseconomy,    :I,          :nice_neteconomy, :I)
