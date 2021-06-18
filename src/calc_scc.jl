@@ -1,4 +1,4 @@
-
+using Interpolations
 """
 compute_scc(m::Model=nothing, year::Int = nothing, last_year::Int = 2595), prtp::Float64 = 0.03)
 Computes the social cost of CO2 for an emissions pulse in `year` for the provided MimiRICE2010 model. 
@@ -57,6 +57,18 @@ function compute_scc_mm(
     return (scc = scc, mm = mm)
 end
 
+function interp_t(array, interpno)
+    tlen = size(array)[1]
+    ret = Array{Float64}(undef, (tlen-1)*interpno, size(array)[2:end]...)
+    for i in 1:interpno
+        for j in 1:tlen-1
+            ret[i+(j-1)*interpno, :, :] = (interpno-i+1)/interpno * array[j, :, :]+ (i-1) / interpno * array[j+1, :, :]
+        end
+    end
+    ret = vcat(ret, array[end:end, :, :])
+    return ret
+end
+
 # helper function for computing SCC from a MarginalModel
 function _compute_scc(mm::MarginalModel; year::Int, last_year::Int, prtp::Float64, eta::Float64, whose_money::String)
     # Will run through the timestep of the specified last_year
@@ -81,15 +93,20 @@ function _compute_scc(mm::MarginalModel; year::Int, last_year::Int, prtp::Float6
     if whose_money == "independent"
         null_cpc = cpc[year_index, :, :]
     end
-    for (i,t) in enumerate(run_years) 
+    for (i,t) in enumerate(run_years)
         if year<=t<=last_year
             df[i, :, :] = (null_cpc./cpc[i, :, :]).^eta * 1/(1+prtp)^(t-year)
         end
     end
-    # currently implemented as a 10year step function; so each timestep of discounted marginal damages is multiplied by 10
+    # currently implemented as a 10year step function so each timestep of discounted marginal damages is multiplied by 10
     # TODO: check and interpolate
-    scc = sum(df .* marginal_damages * 10)
-    return scc
+
+    #interp_df = interp_t(df, 10)
+    #interp_damage = interp_t(marginal_damages, 10)
+    #return sum(
+    #    interp_df .* interp_damage
+    #)
+    return(sum(df .* marginal_damages) * 10)
 end
 
 """
