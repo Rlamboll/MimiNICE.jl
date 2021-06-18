@@ -76,7 +76,7 @@ function create_nice()
     # Set new NICE component parameters for welfare component.
     set_param!(nice, :nice_welfare, :quintile_pop, quintile_population)
     set_param!(nice, :nice_welfare, :rho, 0.015)
-    set_param!(nice, :nice_welfare, :eta, 2)
+    set_param!(nice, :nice_welfare, :eta, 1.5)
 
     # Create model connections.
     connect_param!(nice, :grosseconomy,    :I,          :nice_neteconomy, :I)
