@@ -23,8 +23,8 @@ for whose_money in whose_moneys
         # Calculate for the optimised trajectory
         optprob = problem(opt_nice, [:nice_welfare], [:welfare], [-1e6], [1e6], objective)
         (maxx, maxf) = solution(optprob, () -> [0. for i in 1:5])
-        print("\n" maxx)
-        print("\n" maxf)
+        print("\n", maxx)
+        print("\n", maxf)
         scc = Main.MimiNICE.compute_scc(opt_nice, year=2015, last_year=2595, eta=eta, prtp=prtp, whose_money=whose_money)
         print("\n optimised eta = ", eta, " whose = ", whose_money, " scc = ", scc, "\n")
 

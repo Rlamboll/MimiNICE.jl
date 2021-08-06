@@ -32,6 +32,20 @@ computed_val_poor = sum(poorweight .*  cost) * 12 / 44 / mm.delta * 1000 / (1 + 
 @assert(abs((scc-computed_val)/computed_val) < 1e-12)
 @assert(abs((sccpoor-computed_val_poor)/computed_val_poor) < 1e-12)
 
+# Compare the effect of Interpolation
+sccpoor_int = Main.MimiNICE.compute_scc(
+    nice, year=2015, last_year=2025, eta=eta, prtp=prtp, whose_money="poorest", interpolate=true
+)
+@assert(sccpoor_int < 2* sccpoor)
+@assert(sccpoor_int > sccpoor)
+
+# Compare the effect of average weighting vs poorest weighting
+sccav = Main.MimiNICE.compute_scc(nice, year=2015, last_year=2025, eta=eta, prtp=prtp, whose_money="average")
+conversion_factor = (minimum(mm.base[:nice_neteconomy, :quintile_c_post][2, :, :]) /
+    sum(sum(mm.base[:nice_neteconomy, :quintile_c_post][2, :, :].*mm.base[:nice_neteconomy, :l][2, :, :]./
+    sum(mm.base[:nice_neteconomy, :l][2, :, :])))).^eta
+@assert(abs(sccpoor/sccav-conversion_factor) < 1e-15)
+
 # Then calculate the 2035 contribution 
 scc2035 = Main.MimiNICE.compute_scc(nice, year=2015, last_year=2035, eta=eta, prtp=prtp, whose_money="independent")
 poorscc2035 = Main.MimiNICE.compute_scc(nice, year=2015, last_year=2035, eta=eta, prtp=prtp, whose_money="poorest")

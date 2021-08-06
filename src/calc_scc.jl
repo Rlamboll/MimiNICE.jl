@@ -8,7 +8,7 @@ Constant discounting is used from the specified pure rate of time preference `pr
 """
 function compute_scc(
     m::Model = nothing; year::Union{Int, Nothing} = nothing, last_year::Int = m.mi.last, 
-    prtp::Float64 = 0.015, eta::Float64 = 1.5, whose_money::String = "poorest"
+    prtp::Float64 = 0.015, eta::Float64 = 1.5, whose_money::String = "poorest", interpolate::Bool = false
 )
     !(whose_money in ["poorest", "average", "independent"]) ? error(
         "whose_money must be one of `poorest`, `average` or `independent`."
@@ -22,7 +22,9 @@ function compute_scc(
         "Cannot compute the scc for year $year, year must be within the model's time index $(model_years[1]):10:$last_year."
         ) : nothing
     mm = get_marginal_model(m; year = year)
-    return _compute_scc(mm, year=year, last_year=last_year, prtp=prtp, eta=eta, whose_money=whose_money)
+    return _compute_scc(
+        mm, year=year, last_year=last_year, prtp=prtp, eta=eta, whose_money=whose_money, interpolate=interpolate
+    )
 end
 
 """
@@ -35,7 +37,7 @@ Constant discounting is used from the specified pure rate of time preference `pr
 """
 function compute_scc_mm(
     m::Model=nothing; year::Union{Int, Nothing} = nothing, last_year::Int = m.mi.last, prtp::Float64 = 0.015, 
-    eta::Float64 = 1.5, whose_money::String = "poorest"
+    eta::Float64 = 1.5, whose_money::String = "poorest", interpolate::Bool = false
 )
     !(whose_money in ["poorest", "average", "independent"]) ? error(
         "whose_money must be one of `poorest`, `average` or `independent`."
@@ -45,14 +47,16 @@ function compute_scc_mm(
         ) : nothing
     year === nothing ? error("Must specify an emission year. Try `compute_scc_mm(m, year=2015)`.") : nothing
     !(last_year in model_years) ? error(
-        "Invlaid value of $last_year for last_year. last_year must be within the model's time index $model_years."
+        "Invalid value of $last_year for last_year. last_year must be within the model's time index $model_years."
         ) : nothing
     !(year in model_years[1]:10:last_year) ? error(
         "Cannot compute the scc for year $year, year must be within the model's time index $(model_years[1]):10:$last_year."
         ) : nothing
 
     mm = get_marginal_model(m; year = year)
-    scc = _compute_scc(mm; year=year, last_year=last_year, prtp=prtp, eta=eta, whose_money=whose_money)
+    scc = _compute_scc(
+        mm; year=year, last_year=last_year, prtp=prtp, eta=eta, whose_money=whose_money, interpolate=interpolate
+    )
     
     return (scc = scc, mm = mm)
 end
@@ -70,7 +74,9 @@ function interp_t(array, interpno)
 end
 
 # helper function for computing SCC from a MarginalModel
-function _compute_scc(mm::MarginalModel; year::Int, last_year::Int, prtp::Float64, eta::Float64, whose_money::String)
+function _compute_scc(
+    mm::MarginalModel; year::Int, last_year::Int, prtp::Float64, eta::Float64, whose_money::String, interpolate::Bool
+)
     # Will run through the timestep of the specified last_year
     ntimesteps = findfirst(isequal(last_year), model_years)
     run_years = model_years[1:ntimesteps]
@@ -79,10 +85,10 @@ function _compute_scc(mm::MarginalModel; year::Int, last_year::Int, prtp::Float6
     # There is a factor of 10E6 /5 from the population being in millions and divided by 5 quintiles. 
     marginal_damages = -mm[:nice_neteconomy, :quintile_c_post] .* repeat(
         mm.base[:nice_neteconomy, :l], outer=[1, 1, 5]) * 10.0^9 * 12/44 /5
-    # We determine the weights using the pre-damages consumption in $
+    # We determine the weights using the pre-marginal damages consumption in $
     cpc = 1000 .* mm.base[:nice_neteconomy, :quintile_c_post]
     year_index = findfirst(isequal(year), model_years)
-    df = zeros(size(cpc))
+    
     if whose_money == "poorest"
         null_cpc = minimum(cpc[year_index, :, 1], dims=1)
     end
@@ -93,20 +99,25 @@ function _compute_scc(mm::MarginalModel; year::Int, last_year::Int, prtp::Float6
     if whose_money == "independent"
         null_cpc = cpc[year_index, :, :]
     end
-    for (i,t) in enumerate(run_years)
-        if year<=t<=last_year
+    if interpolate == false
+        df = zeros(size(cpc))
+        for (i,t) in enumerate(run_years)
             df[i, :, :] = (null_cpc./cpc[i, :, :]).^eta * 1/(1+prtp)^(t-year)
         end
+        # currently implemented as a 10year step function so each timestep of discounted marginal damages is multiplied by 10
+        df = df * 10
+    else
+        # To capture the end of the decadal period we go out 9 years. 
+        every_year = minimum(run_years):min(maximum(run_years)+9, maximum(model_years))
+        cpc_interp = interp_t(cpc, 10)
+        marginal_damages = interp_t(marginal_damages, 10)
+        df = zeros(size(cpc_interp))
+        for (i,t) in enumerate(every_year)
+            df[i, :, :] = (null_cpc./cpc_interp[i, :, :]).^eta * 1/(1+prtp)^(t-year)
+        end
     end
-    # currently implemented as a 10year step function so each timestep of discounted marginal damages is multiplied by 10
-    # TODO: check and interpolate
 
-    #interp_df = interp_t(df, 10)
-    #interp_damage = interp_t(marginal_damages, 10)
-    #return sum(
-    #    interp_df .* interp_damage
-    #)
-    return(sum(df .* marginal_damages) * 10)
+    return(sum(df .* marginal_damages))
 end
 
 """
