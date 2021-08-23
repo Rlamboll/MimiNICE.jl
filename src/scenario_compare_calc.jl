@@ -42,13 +42,18 @@ function scenario_compare()
             push!(treemissions, [year, treemission])
             year_ind += 1
         end
+        # Do the remaining years to mimic 2100
+        emissions_ratio = variant_emissions[1, string(2100)]/ sum(base_emissions[year_ind, :]) * 12/44 / 1000
+        push!(emissions_ratios, [2105, 1-emissions_ratio])
+        treemission = (variant_treemissions[1, string(2100)]) * 12/44 / 1000
+        push!(treemissions, [2105, treemission])
         # The code cannot deal with cases more extreme than the baseline, so we remove emissions values below 0. We also limit 
         # Negative emissions after 2100 to only tree-based emissions. 
         emissions_ratios.value[emissions_ratios.value .< 0 ] .= 0
-        new_miu = vcat(vcat(zeros(1, 12), repeat(emissions_ratios.value, 1, 12)), min(emissions_ratios.value[end], 1) * ones(50, 12))
+        new_miu = vcat(vcat(zeros(1, 12), repeat(emissions_ratios.value, 1, 12)), min(emissions_ratios.value[end], 1) * ones(49, 12))
         update_param!(variant_nice, :MIU, new_miu)
         # Our new construction requires the original starting value, followed by the repeated last value
-        etree_new = append!(append!([nice[:emissions, :etree][1]], treemissions.value), repeat([treemissions.value[end]], 50))
+        etree_new = append!(append!([nice[:emissions, :etree][1]], treemissions.value), repeat([treemissions.value[end]], 49))
         update_param!(variant_nice, :etree, etree_new)
 
         for prtp in prtps
@@ -69,4 +74,4 @@ dollar_val_2020 = 1.35
 
 results_interp = scenario_compare()
 results_interp.scc = results_interp.scc * dollar_val_2020
-CSV.write("./output/interpolated_scc_scenarios_v4_2025.csv", results_interp)
+CSV.write("./output/interpolated_scc_scenarios_v5_2025.csv", results_interp)
