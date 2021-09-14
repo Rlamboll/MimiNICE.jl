@@ -6,12 +6,14 @@ using CSVFiles, DataFrames, Mimi, MimiRICE2010
 
 # Load helper functions and NICE components being added to the RICE model.
 include("helper_functions.jl")
+include("calc_scc.jl")
+
 include(joinpath("nice_components", "nice_neteconomy_component.jl"))
 include(joinpath("nice_components", "nice_welfare_component.jl"))
 
 # Export the following functions.
-export create_nice, quintile_distribution
-
+export create_nice, quintile_distribution, compute_scc
+const model_years = 2005:10:2595
 
 # ---------------------------------------------
 # ---------------------------------------------
@@ -66,9 +68,10 @@ function create_nice()
     set_param!(nice, :l,   un_population_data)
 
     # Set new NICE component parameters for net economy.
+    income_elasticity = 1.0
     set_param!(nice, :nice_neteconomy, :income_dist, income_distribution ./ 100)
-    set_param!(nice, :nice_neteconomy, :damage_dist, quintile_distribution(1.0, income_distribution))
-    set_param!(nice, :nice_neteconomy, :abatement_dist, quintile_distribution(1.0, income_distribution))
+    set_param!(nice, :nice_neteconomy, :damage_dist, quintile_distribution(income_elasticity, income_distribution))
+    set_param!(nice, :nice_neteconomy, :abatement_dist, quintile_distribution(income_elasticity, income_distribution))
 
     # Set new NICE component parameters for welfare component.
     set_param!(nice, :nice_welfare, :quintile_pop, quintile_population)
