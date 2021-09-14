@@ -51,8 +51,13 @@
                 # Calculate pre-damage, pre-abatement cost quintile consumption.
                 v.quintile_c_pre[t,r,q] = temp_C * p.income_dist[r,q]
 
-                # Calculate post-damage, post-abatement cost quintile consumption (bounded below to ensure consumptions don't collapse to zero or go negative).
-                v.quintile_c_post[t,r,q] = max(v.quintile_c_pre[t,r,q] - (5.0 * v.CPC[t,r] * p.DAMFRAC[t,r] * p.damage_dist[r,q]) - (temp_C * v.ABATEFRAC[t,r] * p.abatement_dist[r,q]), 1e-8)
+                # Calculate post-damage, post-abatement cost quintile consumption 
+                # (bounded below to ensure consumptions don't collapse to zero or go negative).
+                v.quintile_c_post[t,r,q] = max(
+                    v.quintile_c_pre[t,r,q] - (5.0 * v.CPC[t,r] * p.DAMFRAC[t,r] * p.damage_dist[r,q]) - 
+                    (temp_C * v.ABATEFRAC[t,r] * p.abatement_dist[r,q]),
+                    1e-8
+                )
             end
         end
     end
